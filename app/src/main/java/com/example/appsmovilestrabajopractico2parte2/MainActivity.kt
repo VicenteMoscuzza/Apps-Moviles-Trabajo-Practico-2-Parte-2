@@ -64,7 +64,10 @@ fun CiudadesApp(viewModel: CiudadesViewModel = viewModel()) {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                Button(onClick = { dialogType = DialogType.AGREGAR; showDialog = true }) {
+                Button(onClick = { 
+                    dialogType = DialogType.AGREGAR
+                    showDialog = true 
+                }) {
                     Text("Agregar Ciudad")
                 }
                 Button(onClick = { dialogType = DialogType.BUSCAR; showDialog = true }) {
@@ -97,39 +100,64 @@ fun CiudadesApp(viewModel: CiudadesViewModel = viewModel()) {
         // Diálogos
         when (dialogType) {
             DialogType.AGREGAR -> AgregarCiudadDialog(
-                onDismiss = { showDialog = false },
-                onConfirm = { pais, ciudad, poblacion ->
-                    viewModel.agregarCiudad(CiudadCapital(pais, ciudad, poblacion.toLong()))
+                onDismiss = { 
                     showDialog = false
+                    dialogType = null
+                },
+                onConfirm = { pais, ciudad, poblacion ->
+                    try {
+                        val poblacionLong = poblacion.toLong()
+                        viewModel.agregarCiudad(CiudadCapital(pais, ciudad, poblacionLong))
+                        showDialog = false
+                        dialogType = null
+                    } catch (e: NumberFormatException) {
+                        // Manejar error de formato de número si es necesario
+                    }
                 }
             )
             DialogType.BUSCAR -> BuscarCiudadDialog(
-                onDismiss = { showDialog = false },
+                onDismiss = { 
+                    showDialog = false
+                    dialogType = null
+                },
                 onSearch = { nombre ->
                     searchResult = viewModel.buscarCiudad(nombre)
                     showSearchResults = true
                     showDialog = false
+                    dialogType = null
                 }
             )
             DialogType.ELIMINAR -> EliminarCiudadDialog(
-                onDismiss = { showDialog = false },
+                onDismiss = { 
+                    showDialog = false
+                    dialogType = null
+                },
                 onConfirm = { nombre ->
                     viewModel.eliminarCiudad(nombre)
                     showDialog = false
+                    dialogType = null
                 }
             )
             DialogType.ELIMINAR_PAIS -> EliminarPaisDialog(
-                onDismiss = { showDialog = false },
+                onDismiss = { 
+                    showDialog = false
+                    dialogType = null
+                },
                 onConfirm = { pais ->
                     viewModel.eliminarCiudadesPorPais(pais)
                     showDialog = false
+                    dialogType = null
                 }
             )
             DialogType.MODIFICAR_POBLACION -> ModificarPoblacionDialog(
-                onDismiss = { showDialog = false },
+                onDismiss = { 
+                    showDialog = false
+                    dialogType = null
+                },
                 onConfirm = { ciudad, poblacion ->
                     viewModel.modificarPoblacion(ciudad, poblacion.toLong())
                     showDialog = false
+                    dialogType = null
                 }
             )
             null -> {}
@@ -195,6 +223,7 @@ fun AgregarCiudadDialog(
     var pais by remember { mutableStateOf("") }
     var ciudad by remember { mutableStateOf("") }
     var poblacion by remember { mutableStateOf("") }
+    var showError by remember { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -203,27 +232,52 @@ fun AgregarCiudadDialog(
             Column {
                 OutlinedTextField(
                     value = pais,
-                    onValueChange = { pais = it },
-                    label = { Text("País") }
+                    onValueChange = { 
+                        pais = it
+                        showError = false
+                    },
+                    label = { Text("País") },
+                    isError = showError && pais.isBlank()
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 OutlinedTextField(
                     value = ciudad,
-                    onValueChange = { ciudad = it },
-                    label = { Text("Ciudad") }
+                    onValueChange = { 
+                        ciudad = it
+                        showError = false
+                    },
+                    label = { Text("Ciudad") },
+                    isError = showError && ciudad.isBlank()
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 OutlinedTextField(
                     value = poblacion,
-                    onValueChange = { poblacion = it },
-                    label = { Text("Población") }
+                    onValueChange = { 
+                        poblacion = it
+                        showError = false
+                    },
+                    label = { Text("Población") },
+                    isError = showError && (poblacion.isBlank() || !poblacion.all { it.isDigit() })
                 )
+                if (showError) {
+                    Text(
+                        text = "Por favor complete todos los campos correctamente",
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
             }
         },
         confirmButton = {
             TextButton(
-                onClick = { onConfirm(pais, ciudad, poblacion) },
-                enabled = pais.isNotBlank() && ciudad.isNotBlank() && poblacion.isNotBlank()
+                onClick = {
+                    if (pais.isNotBlank() && ciudad.isNotBlank() && poblacion.isNotBlank() && poblacion.all { it.isDigit() }) {
+                        onConfirm(pais, ciudad, poblacion)
+                    } else {
+                        showError = true
+                    }
+                }
             ) {
                 Text("Agregar")
             }
@@ -242,21 +296,41 @@ fun BuscarCiudadDialog(
     onSearch: (String) -> Unit
 ) {
     var ciudad by remember { mutableStateOf("") }
+    var showError by remember { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Buscar Ciudad") },
         text = {
-            OutlinedTextField(
-                value = ciudad,
-                onValueChange = { ciudad = it },
-                label = { Text("Nombre de la ciudad") }
-            )
+            Column {
+                OutlinedTextField(
+                    value = ciudad,
+                    onValueChange = { 
+                        ciudad = it
+                        showError = false
+                    },
+                    label = { Text("Nombre de la ciudad") },
+                    isError = showError && ciudad.isBlank()
+                )
+                if (showError) {
+                    Text(
+                        text = "Por favor ingrese el nombre de la ciudad",
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
+            }
         },
         confirmButton = {
             TextButton(
-                onClick = { onSearch(ciudad) },
-                enabled = ciudad.isNotBlank()
+                onClick = {
+                    if (ciudad.isNotBlank()) {
+                        onSearch(ciudad)
+                    } else {
+                        showError = true
+                    }
+                }
             ) {
                 Text("Buscar")
             }
@@ -275,21 +349,41 @@ fun EliminarCiudadDialog(
     onConfirm: (String) -> Unit
 ) {
     var ciudad by remember { mutableStateOf("") }
+    var showError by remember { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Eliminar Ciudad") },
         text = {
-            OutlinedTextField(
-                value = ciudad,
-                onValueChange = { ciudad = it },
-                label = { Text("Nombre de la ciudad") }
-            )
+            Column {
+                OutlinedTextField(
+                    value = ciudad,
+                    onValueChange = { 
+                        ciudad = it
+                        showError = false
+                    },
+                    label = { Text("Nombre de la ciudad") },
+                    isError = showError && ciudad.isBlank()
+                )
+                if (showError) {
+                    Text(
+                        text = "Por favor ingrese el nombre de la ciudad",
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
+            }
         },
         confirmButton = {
             TextButton(
-                onClick = { onConfirm(ciudad) },
-                enabled = ciudad.isNotBlank()
+                onClick = {
+                    if (ciudad.isNotBlank()) {
+                        onConfirm(ciudad)
+                    } else {
+                        showError = true
+                    }
+                }
             ) {
                 Text("Eliminar")
             }
@@ -308,21 +402,41 @@ fun EliminarPaisDialog(
     onConfirm: (String) -> Unit
 ) {
     var pais by remember { mutableStateOf("") }
+    var showError by remember { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Eliminar Ciudades por País") },
         text = {
-            OutlinedTextField(
-                value = pais,
-                onValueChange = { pais = it },
-                label = { Text("Nombre del país") }
-            )
+            Column {
+                OutlinedTextField(
+                    value = pais,
+                    onValueChange = { 
+                        pais = it
+                        showError = false
+                    },
+                    label = { Text("Nombre del país") },
+                    isError = showError && pais.isBlank()
+                )
+                if (showError) {
+                    Text(
+                        text = "Por favor ingrese el nombre del país",
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
+            }
         },
         confirmButton = {
             TextButton(
-                onClick = { onConfirm(pais) },
-                enabled = pais.isNotBlank()
+                onClick = {
+                    if (pais.isNotBlank()) {
+                        onConfirm(pais)
+                    } else {
+                        showError = true
+                    }
+                }
             ) {
                 Text("Eliminar")
             }
@@ -342,6 +456,7 @@ fun ModificarPoblacionDialog(
 ) {
     var ciudad by remember { mutableStateOf("") }
     var poblacion by remember { mutableStateOf("") }
+    var showError by remember { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -350,21 +465,42 @@ fun ModificarPoblacionDialog(
             Column {
                 OutlinedTextField(
                     value = ciudad,
-                    onValueChange = { ciudad = it },
-                    label = { Text("Nombre de la ciudad") }
+                    onValueChange = { 
+                        ciudad = it
+                        showError = false
+                    },
+                    label = { Text("Nombre de la ciudad") },
+                    isError = showError && ciudad.isBlank()
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 OutlinedTextField(
                     value = poblacion,
-                    onValueChange = { poblacion = it },
-                    label = { Text("Nueva población") }
+                    onValueChange = { 
+                        poblacion = it
+                        showError = false
+                    },
+                    label = { Text("Nueva población") },
+                    isError = showError && (poblacion.isBlank() || !poblacion.all { it.isDigit() })
                 )
+                if (showError) {
+                    Text(
+                        text = "Por favor complete todos los campos correctamente",
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
             }
         },
         confirmButton = {
             TextButton(
-                onClick = { onConfirm(ciudad, poblacion) },
-                enabled = ciudad.isNotBlank() && poblacion.isNotBlank()
+                onClick = {
+                    if (ciudad.isNotBlank() && poblacion.isNotBlank() && poblacion.all { it.isDigit() }) {
+                        onConfirm(ciudad, poblacion)
+                    } else {
+                        showError = true
+                    }
+                }
             ) {
                 Text("Modificar")
             }
